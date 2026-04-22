@@ -1,0 +1,30 @@
+{
+  "name": "gstack-codex",
+  "version": "0.1.0-dev",
+  "description": "Codex-first gstack distribution with rollback-safe global and project installers.",
+  "type": "module",
+  "bin": {
+    "gstack-codex": "./bin/gstack-codex.js"
+  },
+  "files": [
+    "README.md",
+    "docs",
+    "bin",
+    "src",
+    "bundle/current"
+  ],
+  "scripts": {
+    "build:bundle": "node ./scripts/build-release-artifacts.mjs",
+    "build:release": "node ./scripts/build-release-artifacts.mjs",
+    "pack:release": "node ./scripts/pack-release.mjs",
+    "prepack": "node ./scripts/build-release-artifacts.mjs",
+    "test": "bun test",
+    "init:global": "node ./bin/gstack-codex.js init --global",
+    "init:project": "node ./bin/gstack-codex.js init --project"
+  },
+  "engines": {
+    "node": ">=18.17.0",
+    "bun": ">=1.0.0"
+  },
+  "license": "MIT"
+}

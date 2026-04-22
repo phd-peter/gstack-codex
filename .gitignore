@@ -1,1 +1,5 @@
 .agents/
+bundle/current/
+dist/
+*.tgz
+.worklog/
