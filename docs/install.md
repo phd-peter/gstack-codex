@@ -37,6 +37,8 @@ Use this inside a git repo:
 npx gstack-codex init --project
 ```
 
+If no git repo is present, `gstack-codex` uses the current directory as the project root.
+
 What it does:
 
 - finds the current repo root

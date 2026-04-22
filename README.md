@@ -12,6 +12,7 @@ npx gstack-codex init --project
 `init --global` is the clean-machine path. It installs the core pack into `$HOME/.agents/skills`, updates `~/.codex/AGENTS.md` with one managed block, and is meant to get a Codex-only user to `/office-hours` quickly.
 
 `init --project` is the repo-local path. It installs the full generated skill pack into `.agents/skills`, updates `AGENTS.md` with one managed block, and keeps heavy browser/runtime binaries machine-local in v1.
+If you're not inside a git repo, it uses the current directory as the project root.
 
 ## Install
 

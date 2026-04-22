@@ -332,6 +332,26 @@ describe('project install', () => {
     }
   });
 
+  test('uses the current directory as the project root when no git repo exists', () => {
+    const bundle = createFixtureBundle();
+    const projectDir = tempDir('gstack-codex-project-');
+
+    try {
+      const result = installProject({
+        bundleRoot: bundle.root,
+        cwd: projectDir,
+      });
+
+      expect(result.summaryLines).toContain('- No git repo found: used the current directory as the project root');
+      expect(fs.existsSync(path.join(projectDir, 'AGENTS.md'))).toBe(true);
+      expect(fs.existsSync(path.join(projectDir, '.agents', 'skills', 'gstack-browse', 'SKILL.md'))).toBe(true);
+      expect(fs.existsSync(path.join(projectDir, '.agents', 'skills', '.gstack-codex-manifest.json'))).toBe(true);
+    } finally {
+      fs.rmSync(bundle.root, { recursive: true, force: true });
+      fs.rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
   test('refuses to overwrite unmanaged repo-local skill directories', () => {
     const bundle = createFixtureBundle();
     const repo = tempDir('gstack-codex-repo-');

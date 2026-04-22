@@ -8,17 +8,18 @@ import { applyManagedBlock, renderManagedBlock } from './managed-block.js';
 import { resolveProjectSkillsRoot } from './paths.js';
 import { InstallTransaction } from './transaction.js';
 
-function findRepoRoot(startDir) {
+function resolveProjectRoot(startDir) {
   let current = path.resolve(startDir);
   while (true) {
     if (fs.existsSync(path.join(current, '.git'))) {
-      return current;
+      return { root: current, detectedGitRepo: true };
     }
     const parent = path.dirname(current);
     if (parent === current) break;
     current = parent;
   }
-  throw new Error('Could not find a git repo root for `init --project`.');
+
+  return { root: path.resolve(startDir), detectedGitRepo: false };
 }
 
 export function installProject({
@@ -27,7 +28,10 @@ export function installProject({
   repoRoot,
   failAfterStep = null,
 } = {}) {
-  const resolvedRepo = repoRoot ? path.resolve(repoRoot) : findRepoRoot(cwd);
+  const projectRoot = repoRoot
+    ? { root: path.resolve(repoRoot), detectedGitRepo: fs.existsSync(path.join(path.resolve(repoRoot), '.git')) }
+    : resolveProjectRoot(cwd);
+  const resolvedRepo = projectRoot.root;
   const skillsRoot = resolveProjectSkillsRoot(resolvedRepo);
   const stateFile = path.join(skillsRoot, PROJECT_MANAGED_STATE_FILE);
 
@@ -104,6 +108,7 @@ export function installProject({
     return {
       summaryLines: [
         `Installed gstack-codex full project pack into ${resolvedRepo}.`,
+        ...(projectRoot.detectedGitRepo ? [] : ['- No git repo found: used the current directory as the project root']),
         '- Updated: AGENTS.md managed block',
         '- Updated: .agents/skills generated pack',
         '- Heavy browser/runtime binaries remain machine-local.',
