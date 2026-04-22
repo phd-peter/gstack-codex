@@ -1,5 +1,7 @@
 # gstack-codex
 
+![gstack-codex overview](docs/intro.png)
+
 `gstack-codex` is a Codex-first distribution of `gstack`.
 
 It is built with direct reference to the upstream [`garrytan/gstack`](https://github.com/garrytan/gstack) workflow and repackages that setup for Codex with a smaller install surface.
