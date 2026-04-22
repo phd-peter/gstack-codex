@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { PROJECT_MANAGED_STATE_FILE } from './constants.js';
-import { loadBundle, resolvePackRuntimeRoot, resolvePackSkillRoot, verifyPackIntegrity } from './bundle.js';
+import { listPackSkillMetadata, loadBundle, resolvePackRuntimeRoot, resolvePackSkillRoot, verifyPackIntegrity } from './bundle.js';
 import { assertPathInside, readJsonIfExistsSync } from './fs.js';
 import { ensureInstallRoots, ensureNoUnmanagedCollisions, pruneRemovedManagedPaths } from './install-common.js';
 import { applyManagedBlock, renderManagedBlock } from './managed-block.js';
@@ -39,6 +39,7 @@ export function installProject({
   const previousManaged = existingState?.managed_paths ?? [];
   const runtimeRoot = resolvePackRuntimeRoot(bundle, 'full');
   const skillRoot = resolvePackSkillRoot(bundle, 'full');
+  const skillEntries = listPackSkillMetadata(bundle, 'full');
   const nextManaged = ['gstack', ...bundle.manifest.full_pack.skills];
 
   ensureNoUnmanagedCollisions({
@@ -57,6 +58,7 @@ export function installProject({
       scope: 'project',
       manifest: bundle.manifest,
       skillsPath: '.agents/skills',
+      skillEntries,
     });
     const updatedAgents = applyManagedBlock(currentAgents, managedBlock);
     assertPathInside(resolvedRepo, agentsFile, 'repo AGENTS write');

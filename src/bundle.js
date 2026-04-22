@@ -3,6 +3,29 @@ import path from 'path';
 import { BUNDLE_SCHEMA_VERSION } from './constants.js';
 import { hashDirectorySync, pathExistsSync } from './fs.js';
 
+const PREFERRED_SKILL_ORDER = [
+  'office-hours',
+  'plan-ceo-review',
+  'plan-eng-review',
+  'plan-design-review',
+  'design-consultation',
+  'review',
+  'investigate',
+  'design-review',
+  'qa',
+  'qa-only',
+  'ship',
+  'document-release',
+  'retro',
+  'browse',
+  'setup-browser-cookies',
+  'careful',
+  'freeze',
+  'guard',
+  'unfreeze',
+  'gstack-upgrade',
+];
+
 export function loadBundle(bundleRoot) {
   const manifestPath = path.join(bundleRoot, 'manifest.json');
   if (!pathExistsSync(manifestPath)) {
@@ -32,6 +55,91 @@ export function resolvePackSkillRoot(bundle, packName) {
 
 export function resolvePackRuntimeRoot(bundle, packName) {
   return path.join(bundle.root, getPack(bundle, packName).runtime_root);
+}
+
+function parseFrontmatter(content) {
+  if (!content.startsWith('---\n') && !content.startsWith('---\r\n')) {
+    return null;
+  }
+
+  const normalized = content.replace(/\r\n/g, '\n');
+  const closingIndex = normalized.indexOf('\n---\n', 4);
+  if (closingIndex === -1) return null;
+
+  return normalized.slice(4, closingIndex);
+}
+
+function extractField(frontmatter, fieldName) {
+  const match = frontmatter.match(new RegExp(`^${fieldName}:\\s*(.+)$`, 'm'));
+  return match ? match[1].trim() : null;
+}
+
+function extractDescription(frontmatter) {
+  const lines = frontmatter.split('\n');
+  const startIndex = lines.findIndex(line => line.trim() === 'description: |');
+  if (startIndex === -1) return null;
+
+  const collected = [];
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!line.startsWith('  ')) break;
+    collected.push(line.slice(2));
+  }
+
+  if (collected.length === 0) return null;
+  return collected.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+function summarizeDescription(description, fallbackName) {
+  if (!description) return `Invoke \`/${fallbackName}\` when it matches the task.`;
+
+  const compact = description.replace(/\s+/g, ' ').trim().replace(/\s*\(gstack\)\.?$/, '');
+  const sentences = compact.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length === 0) {
+    return compact;
+  }
+
+  const first = sentences[0].trim();
+  if (first.length >= 60 || sentences.length === 1) {
+    return first;
+  }
+
+  return `${first} ${sentences[1].trim()}`;
+}
+
+function commandNameFromSkillDir(skillDirName) {
+  return skillDirName === 'gstack-upgrade'
+    ? 'gstack-upgrade'
+    : skillDirName.replace(/^gstack-/, '');
+}
+
+function skillSortIndex(commandName) {
+  const index = PREFERRED_SKILL_ORDER.indexOf(commandName);
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+export function listPackSkillMetadata(bundle, packName) {
+  const pack = getPack(bundle, packName);
+  const skillRoot = resolvePackSkillRoot(bundle, packName);
+
+  return pack.skills.map(skillDirName => {
+    const skillFile = path.join(skillRoot, skillDirName, 'SKILL.md');
+    const content = pathExistsSync(skillFile) ? fs.readFileSync(skillFile, 'utf8') : '';
+    const frontmatter = parseFrontmatter(content);
+    const fallbackCommand = commandNameFromSkillDir(skillDirName);
+    const commandName = frontmatter ? (extractField(frontmatter, 'name') ?? fallbackCommand) : fallbackCommand;
+    const description = frontmatter ? extractDescription(frontmatter) : null;
+
+    return {
+      commandName,
+      command: `/${commandName}`,
+      summary: summarizeDescription(description, commandName),
+    };
+  }).sort((left, right) => {
+    const orderDelta = skillSortIndex(left.commandName) - skillSortIndex(right.commandName);
+    if (orderDelta !== 0) return orderDelta;
+    return left.commandName.localeCompare(right.commandName);
+  });
 }
 
 export function verifyPackIntegrity(bundle, packName) {

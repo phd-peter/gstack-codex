@@ -1,10 +1,25 @@
 {
   "name": "gstack-codex",
-  "version": "0.1.0-dev",
+  "version": "0.1.0",
   "description": "Codex-first gstack distribution with rollback-safe global and project installers.",
+  "keywords": [
+    "codex",
+    "gstack",
+    "cli",
+    "agent",
+    "skills"
+  ],
+  "homepage": "https://github.com/phd-peter/gstack-codex#readme",
+  "bugs": {
+    "url": "https://github.com/phd-peter/gstack-codex/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/phd-peter/gstack-codex.git"
+  },
   "type": "module",
   "bin": {
-    "gstack-codex": "./bin/gstack-codex.js"
+    "gstack-codex": "bin/gstack-codex.js"
   },
   "files": [
     "README.md",

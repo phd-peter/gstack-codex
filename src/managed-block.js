@@ -4,27 +4,35 @@ function countOccurrences(haystack, needle) {
   return haystack.split(needle).length - 1;
 }
 
-export function renderManagedBlock({ scope, manifest, skillsPath }) {
-  const headline = scope === 'global'
-    ? '## gstack-codex Global Install'
-    : '## gstack-codex Project Install';
-  const summary = scope === 'global'
-    ? 'This block is managed by gstack-codex. Global user skills live in `$HOME/.agents/skills`.'
-    : 'This block is managed by gstack-codex. Repo-local skills live in `.agents/skills`.';
-  const extra = scope === 'global'
+export function renderManagedBlock({ scope, manifest, skillsPath, skillEntries }) {
+  const refreshCommand = scope === 'global'
+    ? 'npx gstack-codex init --global'
+    : 'npx gstack-codex init --project';
+  const installNote = scope === 'global'
+    ? 'This machine currently has the `core` pack installed.'
+    : 'This repo currently has the `full` pack installed.';
+  const footerNote = scope === 'global'
     ? 'Open Codex and run `/office-hours`.'
-    : 'Heavy browser/runtime binaries stay machine-local. Repo installs commit generated skills plus lightweight runtime assets.';
+    : 'Repo installs include the full generated skill pack. Heavy browser/runtime binaries stay machine-local in v1.';
 
   const lines = [
     MANAGED_BLOCK_START,
-    headline,
+    '## gstack — AI Engineering Workflow',
     '',
-    summary,
+    'This block is managed by `gstack-codex`. Do not edit inside this block.',
+    '',
+    `Skills live in \`${skillsPath}\`. Invoke them by name, e.g. \`${USER_FACING_CORE_COMMANDS[0]}\`.`,
+    `Refresh with \`${refreshCommand}\`.`,
+    installNote,
+    '',
+    '## Available skills',
+    '',
+    '| Skill | What it does |',
+    '|-------|-------------|',
+    ...(skillEntries ?? []).map(entry => `| \`${entry.command}\` | ${entry.summary} |`),
+    '',
+    footerNote,
     `Installed release: \`${manifest.version}\``,
-    `Upstream gstack: \`${manifest.upstream.version}\` @ \`${manifest.upstream.commit}\``,
-    `Managed skills root: \`${skillsPath}\``,
-    `Core commands: ${USER_FACING_CORE_COMMANDS.join(', ')}`,
-    extra,
     MANAGED_BLOCK_END,
   ];
 

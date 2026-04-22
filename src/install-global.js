@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { CORE_PACK_SKILLS, GLOBAL_MANAGED_STATE_FILE, PACKAGE_NAME, USER_FACING_CORE_COMMANDS } from './constants.js';
-import { loadBundle, resolvePackRuntimeRoot, resolvePackSkillRoot, verifyPackIntegrity } from './bundle.js';
+import { listPackSkillMetadata, loadBundle, resolvePackRuntimeRoot, resolvePackSkillRoot, verifyPackIntegrity } from './bundle.js';
 import { assertPathInside, ensureDirSync, movePathSync, readJsonIfExistsSync, writeJsonSync } from './fs.js';
 import { ensureInstallRoots, ensureNoUnmanagedCollisions, migrateLegacyCodexInstall, pruneRemovedManagedPaths } from './install-common.js';
 import { applyManagedBlock, renderManagedBlock } from './managed-block.js';
@@ -31,6 +31,7 @@ export function installGlobal({
   const previousManaged = existingState?.managed_paths ?? [];
   const runtimeRoot = resolvePackRuntimeRoot(bundle, 'core');
   const skillRoot = resolvePackSkillRoot(bundle, 'core');
+  const skillEntries = listPackSkillMetadata(bundle, 'core');
   const requestedManaged = ['gstack', ...CORE_PACK_SKILLS];
 
   ensureNoUnmanagedCollisions({
@@ -54,6 +55,7 @@ export function installGlobal({
       scope: 'global',
       manifest: bundle.manifest,
       skillsPath: agentsHome,
+      skillEntries,
     });
     const updatedAgents = applyManagedBlock(currentAgents, managedBlock);
     assertPathInside(codexHome, agentsFile, '~/.codex write');

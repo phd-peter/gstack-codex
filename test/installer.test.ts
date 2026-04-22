@@ -39,11 +39,26 @@ function createFixtureBundle() {
 
   const fullSkills = [...coreSkills, 'gstack-browse'];
 
+  const commandNameForSkill = (skill: string) => (
+    skill === 'gstack-upgrade'
+      ? 'gstack-upgrade'
+      : skill.replace(/^gstack-/, '')
+  );
+
+  const skillDoc = (skill: string) => `---
+name: ${commandNameForSkill(skill)}
+description: |
+  ${commandNameForSkill(skill)} description.
+---
+
+# ${skill}
+`;
+
   for (const skill of coreSkills) {
-    writeFile(path.join(coreSkillRoot, skill, 'SKILL.md'), `# ${skill}\n`);
+    writeFile(path.join(coreSkillRoot, skill, 'SKILL.md'), skillDoc(skill));
   }
   for (const skill of fullSkills) {
-    writeFile(path.join(fullSkillRoot, skill, 'SKILL.md'), `# ${skill}\n`);
+    writeFile(path.join(fullSkillRoot, skill, 'SKILL.md'), skillDoc(skill));
   }
 
   for (const runtimeRoot of [coreRuntimeRoot, fullRuntimeRoot]) {
@@ -183,6 +198,10 @@ describe('global install', () => {
       const installState = path.join(home, '.codex', 'gstack-codex', 'install-state.json');
       const agentsContent = fs.readFileSync(agentsFile, 'utf8');
       expect(countManagedBlocks(agentsContent)).toBe(1);
+      expect(agentsContent).toContain('## gstack — AI Engineering Workflow');
+      expect(agentsContent).toContain('| `/office-hours` | office-hours description.');
+      expect(agentsContent).toContain('| `/gstack-upgrade` | gstack-upgrade description.');
+      expect(agentsContent).not.toContain('/browse');
       expect(fs.existsSync(installState)).toBe(true);
 
       for (const skill of bundle.coreSkills) {
@@ -290,6 +309,8 @@ describe('project install', () => {
       const agentsContent = fs.readFileSync(path.join(repo, 'AGENTS.md'), 'utf8');
       expect(agentsContent).toContain('# Project notes');
       expect(countManagedBlocks(agentsContent)).toBe(1);
+      expect(agentsContent).toContain('| `/browse` | browse description.');
+      expect(agentsContent).toContain('Repo installs include the full generated skill pack.');
 
       for (const skill of bundle.fullSkills) {
         expect(fs.existsSync(path.join(repo, '.agents', 'skills', skill, 'SKILL.md'))).toBe(true);
