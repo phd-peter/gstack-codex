@@ -2,30 +2,36 @@
 
 `gstack-codex` is a Codex-first distribution of `gstack`.
 
+It is built with direct reference to the upstream [`garrytan/gstack`](https://github.com/garrytan/gstack) workflow and repackages that setup for Codex with a smaller install surface.
+
 The install surface is intentionally small:
 
 ```bash
-npx gstack-codex init --global
 npx gstack-codex init --project
+npx gstack-codex init --global
 ```
 
-`init --global` is the clean-machine path. It installs the core pack into `$HOME/.agents/skills`, updates `~/.codex/AGENTS.md` with one managed block, and is meant to get a Codex-only user to `/office-hours` quickly.
+By default, we recommend installing per project with `init --project`. It keeps skills and routing rules scoped to the repo, makes the setup easier to understand, and avoids turning one machine-wide Codex config into a shared junk drawer across unrelated projects.
 
 `init --project` is the repo-local path. It installs the full generated skill pack into `.agents/skills`, updates `AGENTS.md` with one managed block, and keeps heavy browser/runtime binaries machine-local in v1.
 If you're not inside a git repo, it uses the current directory as the project root.
 
+`init --global` is the clean-machine path. It installs the core pack into `$HOME/.agents/skills`, updates `~/.codex/AGENTS.md` with one managed block, and is meant to get a Codex-only user to `/office-hours` quickly.
+
+Compared to setting up upstream `gstack` by hand, `gstack-codex` removes most of the fiddly parts. Instead of cloning skill repos, running setup scripts, and wiring `AGENTS.md` yourself, you run one command and get the managed block, the packaged skills, and the expected Codex layout in place.
+
 ## Install
 
-Global install:
-
-```bash
-npx gstack-codex init --global
-```
-
-Project install:
+Recommended for most users, per project:
 
 ```bash
 npx gstack-codex init --project
+```
+
+Global install, mainly for a clean Codex-only machine:
+
+```bash
+npx gstack-codex init --global
 ```
 
 Prerequisites:
