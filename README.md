@@ -2,27 +2,44 @@
 
 ![gstack-codex overview](docs/intro.png)
 
-`gstack-codex` is a Codex-first distribution of `gstack`.
+> Codex is powerful. `gstack-codex` makes it easy, deep, and fast.
 
-It is built with direct reference to the upstream [`garrytan/gstack`](https://github.com/garrytan/gstack) workflow and repackages that setup for Codex with a smaller install surface.
+`gstack-codex` turns Codex into an opinionated product-building workflow in minutes.
 
-The install surface is intentionally small:
+It brings Garry Tan's upstream [`gstack`](https://github.com/garrytan/gstack)
+workflow to Codex with a smaller install surface, managed `AGENTS.md` wiring,
+and guided skills instead of a blank prompt.
 
 ```bash
 npx gstack-codex init --project
 npx gstack-codex init --global
 ```
 
-By default, we recommend installing per project with `init --project`. It keeps skills and routing rules scoped to the repo, makes the setup easier to understand, and avoids turning one machine-wide Codex config into a shared junk drawer across unrelated projects.
+![gstack-codex fast install demo](docs/initial-install.gif)
 
-`init --project` is the repo-local path. It installs the full generated skill pack into `.agents/skills`, updates `AGENTS.md` with one managed block, and keeps heavy browser/runtime binaries machine-local in v1.
-If you're not inside a git repo, it uses the current directory as the project root.
+> Fast initial install. From blank repo to guided Codex workflow in minutes.
 
-`init --global` is the clean-machine path. It installs the core pack into `$HOME/.agents/skills`, updates `~/.codex/AGENTS.md` with one managed block, and is meant to get a Codex-only user to `/office-hours` quickly.
+Most people should start with `init --project`.
+Use `init --global` on a clean Codex-only machine.
 
-Compared to setting up upstream `gstack` by hand, `gstack-codex` removes most of the fiddly parts. Instead of cloning skill repos, running setup scripts, and wiring `AGENTS.md` yourself, you run one command and get the managed block, the packaged skills, and the expected Codex layout in place.
+## What You Get In 5 Minutes
 
-## Install
+- a guided `/office-hours` flow instead of staring at a blank Codex prompt
+- structured `/plan-ceo-review`, `/plan-eng-review`, `/review`, and `/ship`
+  workflows
+- repo-local `AGENTS.md` wiring and generated skills without manual setup
+- a Codex session that feels like a real agent workflow, not raw terminal driving
+
+## Why This Exists
+
+- Plain Codex is powerful, but the first session can feel ambiguous if you do
+  not already know how to drive agent workflows.
+- Upstream `gstack` on Claude Code is proven and deep, but it is still a
+  Claude-first setup.
+- `gstack-codex` is the easiest path to a deep, opinionated `gstack` workflow
+  on Codex.
+
+## Quick Start
 
 Recommended for most users, per project:
 
@@ -42,7 +59,36 @@ Prerequisites:
 - a signed-in Codex session
 - Node.js `18.17+`
 
+After install:
+
+1. Open Codex in your repo.
+2. Run `/office-hours`.
+3. If your Codex surface does not expose slash commands yet, simply ask it to
+   start office hours.
+4. Turn a vague idea into a design doc and follow-up plan instead of starting
+   from scratch.
+
 Detailed install notes live in [docs/install.md](docs/install.md).
+
+## Install Modes
+
+`init --project` is the repo-local path.
+It installs the full generated skill pack into `.agents/skills`, updates
+`AGENTS.md` with one managed block, and keeps heavy browser/runtime binaries
+machine-local in v1.
+If you are not inside a git repo, it uses the current directory as the project
+root.
+
+`init --global` is the clean-machine path.
+It installs the core pack into `$HOME/.agents/skills`, updates
+`~/.codex/AGENTS.md` with one managed block, and is meant to get a Codex-only
+user to `/office-hours` quickly.
+
+Compared to setting up upstream `gstack` by hand, `gstack-codex` removes most
+of the fiddly parts.
+Instead of cloning skill repos, running setup scripts, and wiring `AGENTS.md`
+yourself, you run one command and get the managed block, the packaged skills,
+and the expected Codex layout in place.
 
 ## What Gets Written
 
@@ -65,11 +111,13 @@ Project install writes:
 - `.agents/skills/gstack-*`
 - `.agents/skills/.gstack-codex-manifest.json`
 
-The installer only manages one block inside `AGENTS.md`. If no `AGENTS.md` exists, it creates one.
+The installer only manages one block inside `AGENTS.md`.
+If no `AGENTS.md` exists, it creates one.
 
 ## Maintainer Flow
 
-Release artifacts are built from the vendored upstream checkout under `.agents/skills/gstack`.
+Release artifacts are built from the vendored upstream checkout under
+`.agents/skills/gstack`.
 
 Build the staged release bundle:
 

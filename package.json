@@ -1,13 +1,16 @@
 {
   "name": "gstack-codex",
   "version": "0.1.1",
-  "description": "Codex-first gstack distribution with rollback-safe global and project installers.",
+  "description": "Make Codex easy, deep, and fast with Garry Tan's gstack workflow.",
   "keywords": [
     "codex",
+    "openai",
     "gstack",
-    "cli",
-    "agent",
-    "skills"
+    "ai-agents",
+    "coding-agent",
+    "agent-workflow",
+    "agents-md",
+    "developer-tools"
   ],
   "homepage": "https://github.com/phd-peter/gstack-codex#readme",
   "bugs": {
