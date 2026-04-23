@@ -1,6 +1,7 @@
 export const PACKAGE_NAME = 'gstack-codex';
 export const MIN_CODEX_VERSION = '0.122.0';
 export const BUNDLE_SCHEMA_VERSION = 1;
+export const UPSTREAM_GSTACK_CONFIG_FILE = 'upstream-gstack.json';
 
 export const CORE_PACK_SKILLS = [
   'gstack-upgrade',

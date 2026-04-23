@@ -1,6 +1,6 @@
 {
   "name": "gstack-codex",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Make Codex easy, deep, and fast with Garry Tan's gstack workflow.",
   "keywords": [
     "codex",
@@ -32,10 +32,12 @@
     "bundle/current"
   ],
   "scripts": {
+    "bootstrap:upstream": "node ./scripts/bootstrap-upstream-gstack.mjs",
     "build:bundle": "node ./scripts/build-release-artifacts.mjs",
     "build:release": "node ./scripts/build-release-artifacts.mjs",
     "pack:release": "node ./scripts/pack-release.mjs",
     "prepack": "node ./scripts/build-release-artifacts.mjs",
+    "sync:upstream": "node ./scripts/sync-upstream.mjs --write",
     "test": "bun test",
     "init:global": "node ./bin/gstack-codex.js init --global",
     "init:project": "node ./bin/gstack-codex.js init --project"

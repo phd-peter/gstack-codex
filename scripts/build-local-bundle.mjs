@@ -1,12 +1,12 @@
-import path from 'path';
 import { buildReleaseArtifacts } from '../src/release-artifacts.js';
 import { PACKAGE_ROOT } from '../src/paths.js';
 import { readPackageVersion } from '../src/package-metadata.js';
+import { assertPreparedVendoredRoot, resolveReleaseVendoredRoot } from '../src/upstream-source.js';
 
 const result = buildReleaseArtifacts({
   packageRoot: PACKAGE_ROOT,
   releaseVersion: readPackageVersion(PACKAGE_ROOT),
-  vendoredRoot: path.join(PACKAGE_ROOT, '.agents', 'skills', 'gstack'),
+  vendoredRoot: assertPreparedVendoredRoot(resolveReleaseVendoredRoot({ packageRoot: PACKAGE_ROOT })),
 });
 
 console.log(`Built release bundle at ${result.releaseRoot}`);

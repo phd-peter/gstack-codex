@@ -1,0 +1,104 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing git tag to publish, for example v0.1.2'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: publish-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.value }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@11.5.1
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.13'
+
+      - name: Read package metadata
+        id: meta
+        run: |
+          VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")
+          PACKAGE=$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).name")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
+          echo "tarball=$PACKAGE-$VERSION.tgz" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag matches package version
+        run: |
+          test "${{ steps.tag.outputs.value }}" = "v${{ steps.meta.outputs.version }}"
+
+      - name: Bootstrap upstream gstack from tracked pin
+        run: node ./scripts/bootstrap-upstream-gstack.mjs --clean
+
+      - name: Run tests
+        run: bun test
+
+      - name: Build release artifacts
+        env:
+          GSTACK_CODEX_UPSTREAM_ROOT: ${{ github.workspace }}/dist/.upstream/gstack
+        run: node ./scripts/build-release-artifacts.mjs
+
+      - name: Pack npm artifact
+        env:
+          GSTACK_CODEX_UPSTREAM_ROOT: ${{ github.workspace }}/dist/.upstream/gstack
+        run: node ./scripts/pack-release.mjs
+
+      - name: Publish to npm with trusted publishing
+        run: npm publish "dist/releases/${{ steps.meta.outputs.version }}/npm/${{ steps.meta.outputs.tarball }}" --access public
+
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ steps.tag.outputs.value }}" >/dev/null 2>&1; then
+            gh release upload "${{ steps.tag.outputs.value }}" \
+              "dist/releases/${{ steps.meta.outputs.version }}/release.json" \
+              "dist/releases/${{ steps.meta.outputs.version }}/SHA256SUMS.txt" \
+              "dist/releases/${{ steps.meta.outputs.version }}/npm/${{ steps.meta.outputs.tarball }}" \
+              --clobber
+          else
+            gh release create "${{ steps.tag.outputs.value }}" \
+              "dist/releases/${{ steps.meta.outputs.version }}/release.json" \
+              "dist/releases/${{ steps.meta.outputs.version }}/SHA256SUMS.txt" \
+              "dist/releases/${{ steps.meta.outputs.version }}/npm/${{ steps.meta.outputs.tarball }}" \
+              --title "${{ steps.tag.outputs.value }}" \
+              --notes "npm package ${{ steps.meta.outputs.package }}@${{ steps.meta.outputs.version }} published from tracked upstream pin."
+          fi
