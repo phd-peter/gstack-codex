@@ -1,6 +1,6 @@
 # gstack-codex
 
-![gstack-codex overview](docs/intro.png)
+![gstack-codex overview](docs/intro-v2.png)
 
 > Codex is powerful. `gstack-codex` makes it easy, deep, and fast.
 
