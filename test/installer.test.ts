@@ -166,11 +166,13 @@ describe('global install', () => {
     const home = tempDir('gstack-codex-home-');
     const binDir = path.join(home, 'bin');
     const originalPath = process.env.PATH;
+    const originalWindowsPath = process.env.Path;
 
     try {
       writeFile(path.join(home, '.codex', 'auth.json'), '{}');
       writeFile(path.join(binDir, 'codex.cmd'), '@echo off\r\necho codex-cli 0.122.0\r\n');
       process.env.PATH = `${binDir};${originalPath ?? ''}`;
+      process.env.Path = `${binDir};${originalWindowsPath ?? originalPath ?? ''}`;
 
       const result = runGlobalPreflight({
         homeDir: home,
@@ -179,6 +181,7 @@ describe('global install', () => {
       expect(result.parsedVersion).toBe('0.122.0');
     } finally {
       process.env.PATH = originalPath;
+      process.env.Path = originalWindowsPath;
       fs.rmSync(home, { recursive: true, force: true });
     }
   });

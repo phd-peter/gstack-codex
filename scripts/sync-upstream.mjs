@@ -23,14 +23,20 @@ const options = parseArgs(process.argv.slice(2));
 const current = readUpstreamConfig(PACKAGE_ROOT);
 const latest = readLatestUpstreamCommit({ packageRoot: PACKAGE_ROOT });
 const changed = latest.commit !== current.pinned_commit;
+const shouldContinue = changed || options.force;
+const compareUrl = `${current.repo_url.replace(/\.git$/, '')}/compare/${current.pinned_commit}...${latest.commit}`;
 
-if (!changed && !options.force) {
+if (!shouldContinue) {
   console.log(`No upstream change detected for ${current.repo_url} ${current.branch}.`);
   console.log(`- pinned commit: ${current.pinned_commit}`);
   appendGitHubOutput({
     changed: 'false',
+    upstream_changed: 'false',
+    previous_commit: current.pinned_commit,
+    previous_version: current.pinned_version,
     pinned_commit: current.pinned_commit,
     pinned_version: current.pinned_version,
+    compare_url: compareUrl,
   });
   process.exit(0);
 }
@@ -54,10 +60,15 @@ if (options.write) {
 console.log(`Resolved latest upstream gstack ${prepared.version} (${prepared.commit}).`);
 console.log(`- previous commit: ${current.pinned_commit}`);
 console.log(`- previous version: ${current.pinned_version}`);
+console.log(`- compare: ${compareUrl}`);
 console.log(`- write: ${options.write ? 'yes' : 'no'}`);
 
 appendGitHubOutput({
-  changed: String(changed),
+  changed: String(shouldContinue),
+  upstream_changed: String(changed),
+  previous_commit: current.pinned_commit,
+  previous_version: current.pinned_version,
   pinned_commit: prepared.commit,
   pinned_version: prepared.version,
+  compare_url: `${current.repo_url.replace(/\.git$/, '')}/compare/${current.pinned_commit}...${prepared.commit}`,
 });

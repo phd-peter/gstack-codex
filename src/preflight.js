@@ -30,6 +30,32 @@ function hasCodexAuth(homeDir) {
   return fs.existsSync(authPath);
 }
 
+function resolveWindowsPathCandidates(command) {
+  const pathValue = process.env.PATH ?? process.env.Path ?? '';
+  const pathEntries = pathValue.split(path.delimiter).filter(Boolean);
+  const extensions = (process.env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD')
+    .split(';')
+    .map(extension => extension.trim().toLowerCase())
+    .filter(Boolean);
+
+  const commandExtension = path.extname(command).toLowerCase();
+  const names = commandExtension
+    ? [command]
+    : [command, ...extensions.map(extension => `${command}${extension}`)];
+
+  const candidates = [];
+  for (const entry of pathEntries) {
+    for (const name of names) {
+      const candidate = path.join(entry, name);
+      if (fs.existsSync(candidate)) {
+        candidates.push(candidate);
+      }
+    }
+  }
+
+  return candidates;
+}
+
 function runCodexVersionProbe(codexBin) {
   let candidates;
   if (process.platform === 'win32') {
@@ -39,17 +65,7 @@ function runCodexVersionProbe(codexBin) {
 
     const usesPathLookup = !path.isAbsolute(codexBin) && !codexBin.includes(path.sep);
     if (usesPathLookup) {
-      const whereResult = spawnSync('where.exe', [codexBin], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      });
-      const resolved = whereResult.status === 0
-        ? whereResult.stdout
-          .split(/\r?\n/)
-          .map(line => line.trim())
-          .filter(Boolean)
-        : [];
-      candidates = [...resolved, ...directCandidates];
+      candidates = [...resolveWindowsPathCandidates(codexBin), ...directCandidates];
     } else {
       candidates = directCandidates;
     }

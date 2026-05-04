@@ -29,10 +29,22 @@ Refresh the tracked upstream pin to the latest `main` commit:
 npm run sync:upstream
 ```
 
+Patch-bump the wrapper package version:
+
+```bash
+npm run version:patch
+```
+
 Create the npm tarball artifact:
 
 ```bash
 npm run pack:release
+```
+
+Run the release compatibility gate:
+
+```bash
+npm run check:release
 ```
 
 ## Output Layout
@@ -72,9 +84,46 @@ The bundle manifest contains:
 
 `SHA256SUMS.txt` adds release-level checksums for the staged manifest, release metadata, and npm tarball artifact.
 
-## Current Boundary
+## Automatic Upstream Release
 
-This is now a publishable artifact flow with a tracked upstream pin and a starter
-`sync-upstream.yml` workflow.
+`.github/workflows/auto-upstream-release.yml` is the scheduled upstream-to-publish
+path. It also runs when `upstream-gstack.json` changes on `main`, which covers the
+manual sync-PR-then-merge path.
 
-Automatic publish remains deferred work.
+It checks upstream weekly, updates `upstream-gstack.json`, bumps the wrapper patch
+version, tests, builds, packs, commits the release bump, pushes a version tag, and
+dispatches `publish.yml`.
+
+The dispatch is intentional. Release commits and tags are pushed with the default
+`GITHUB_TOKEN`; GitHub does not start new `push` workflow runs from events created
+by that token, while `workflow_dispatch` is allowed.
+
+`publish.yml` remains the only npm trusted publisher workflow. This matters because
+npm allows one trusted publisher per package.
+
+The older `sync-upstream.yml` workflow is now a manual review-first path. Use it
+when you want a PR before release. Merging that PR still triggers the automatic
+release workflow.
+
+Before opening the PR, `sync-upstream.yml` runs tests, builds release artifacts,
+packs the npm artifact, runs the release compatibility gate, and generates an
+upstream diff report from the candidate upstream checkout. The generated bundle is
+still not committed to `main`; the PR records the pin plus an upstream compare link,
+commit/file counts, and a workflow artifact with the full diff report. The publish
+workflow rebuilds the bundle from that pin.
+
+`publish.yml` also runs the compatibility gate after packing and uploads
+`upstream-diff-report.md` to the GitHub Release when a previous release tag is
+available for comparison.
+
+## Terminal And Log Hygiene
+
+Workflow jobs set:
+
+- `LANG=C.UTF-8`
+- `LC_ALL=C.UTF-8`
+- `NO_COLOR=1`
+- `FORCE_COLOR=0`
+
+Project-owned automation output should stay ASCII where practical. This keeps logs
+readable in Windows terminals that are still using a legacy code page.

@@ -10,9 +10,11 @@
 코드 쪽 준비는 이미 되어 있다.
 
 - workflow 파일: `.github/workflows/publish.yml`
+- workflow 파일: `.github/workflows/auto-upstream-release.yml`
 - 운영 문서: `MAINTAINER_RELEASE_FLOW.md`
 
 현재 `publish.yml`은 npm trusted publishing 요구사항에 맞춰져 있다.
+`auto-upstream-release.yml`은 직접 publish하지 않고 `publish.yml`을 호출한다.
 
 - GitHub-hosted runner 사용
 - `id-token: write` 권한 포함
@@ -24,7 +26,7 @@
 목적:
 GitHub Actions가 `NPM_TOKEN` 없이 OIDC로 `npm publish` 하도록 만든다.
 
-입력해야 할 값:
+입력해야 할 값은 하나다.
 
 - Organization or user: `phd-peter`
 - Repository: `gstack-codex`
@@ -45,6 +47,8 @@ GitHub Actions가 `NPM_TOKEN` 없이 OIDC로 `npm publish` 하도록 만든다.
 주의:
 
 - `Workflow filename`에는 `.github/workflows/publish.yml` 전체 경로를 넣지 말고 `publish.yml`만 넣는다.
+- npm은 패키지당 trusted publisher를 하나만 허용한다.
+- `auto-upstream-release.yml`을 추가하려고 하지 않는다. 기존 `publish.yml` 설정을 유지한다.
 - 값이 틀려도 저장은 될 수 있고, 실제 publish 시점에만 실패할 수 있다.
 - trusted publishing은 현재 GitHub-hosted runner 기준이다. 이 repo의 workflow는 그 조건에 맞춰져 있다.
 - `NPM_TOKEN` secret은 필요 없다.
@@ -77,12 +81,15 @@ GitHub Actions가 `NPM_TOKEN` 없이 OIDC로 `npm publish` 하도록 만든다.
 - Required reviewers: 1명 또는 1팀
 - Prevent self-review: 필요하면 체크
 - Deployment branches and tags: `Selected branches and tags`
-- Ref type: `Tag`
+- Pattern: `main`
 - Pattern: `v*`
 
 왜 필요한가:
 
 - `publish.yml`은 `environment: release`를 사용한다.
+- `auto-upstream-release.yml`은 `release` environment를 사용하지 않는다.
+- 자동 release가 `publish.yml`을 `main` ref에서 수동 dispatch하므로, `publish.yml` 실행을 위해 `main`도 허용해야 한다.
+- tag 기반 수동 release도 유지하려면 `v*`도 허용한다.
 - 환경을 미리 만들지 않아도 첫 실행 시 GitHub가 자동 생성할 수는 있다.
 - 하지만 자동 생성된 환경은 protection rule이 없을 수 있다.
 - 즉, 승인 없이 바로 publish가 진행될 수 있다.
@@ -94,7 +101,29 @@ GitHub Actions가 `NPM_TOKEN` 없이 OIDC로 `npm publish` 하도록 만든다.
 
 ## 3. 설정이 끝난 뒤 실제 배포
 
-일반적인 흐름은 아래와 같다.
+자동 upstream 배포 흐름은 아래와 같다.
+
+1. `auto-upstream-release.yml`이 주간 스케줄로 실행된다.
+2. upstream commit이 바뀌었으면 `upstream-gstack.json`을 갱신한다.
+3. `package.json` patch version을 올린다.
+4. 테스트, release build, npm pack, compatibility gate를 통과하면 release commit과 tag를 push한다.
+5. upstream diff report를 workflow artifact로 남긴다.
+6. `publish.yml`을 호출한다.
+7. `publish.yml`이 npm publish와 GitHub Release asset 업로드를 실행한다.
+8. 이전 release tag가 있으면 `upstream-diff-report.md`도 GitHub Release asset으로 업로드한다.
+
+여기서 tag push만 믿지 않는 이유가 있다. GitHub Actions의 기본
+`GITHUB_TOKEN`으로 push한 tag는 새 `push` workflow를 실행하지 않는다.
+예외적으로 `workflow_dispatch`는 허용되므로, 자동 release는 명시적으로
+`publish.yml`을 dispatch한다.
+
+`release` environment에 reviewer를 걸어뒀다면 6번 전에 승인을 기다린다.
+reviewer rule이 없으면 여기까지 자동으로 진행된다.
+
+수동으로 `sync-upstream.yml` PR을 만들고 merge해도 같은 자동 배포 경로가 돈다.
+이 경우 `auto-upstream-release.yml`은 `main`에 들어온 `upstream-gstack.json` 변경을 보고 실행된다.
+
+수동 wrapper 배포 흐름은 아래와 같다.
 
 1. `package.json` 버전을 올린다.
 2. 커밋한다.
@@ -116,8 +145,9 @@ git push origin v0.1.2
 - npm trusted publisher의 `Environment name`이 `release`인지
 - GitHub repo에 `release` environment가 실제로 있는지
 - Actions runner가 self-hosted가 아닌 GitHub-hosted인지
-- workflow에 `id-token: write` 권한이 있는지
+- `publish.yml`에 `id-token: write` 권한이 있는지
 - publish tag가 `package.json` 버전과 일치하는지
+- 자동 upstream 배포라면 Actions가 `main`과 `v*` tag에 push할 수 있는지
 
 ## 5. 공식 문서
 

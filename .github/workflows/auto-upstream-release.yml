@@ -1,0 +1,198 @@
+name: auto-upstream-release
+
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  push:
+    branches:
+      - main
+    paths:
+      - upstream-gstack.json
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Create a patch release even when upstream is already pinned'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: auto-upstream-release
+  cancel-in-progress: false
+
+env:
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+  NO_COLOR: '1'
+  FORCE_COLOR: '0'
+
+jobs:
+  detect:
+    if: >-
+      ${{
+        github.event_name != 'push' ||
+        !startsWith(github.event.head_commit.message, 'chore: release gstack-codex ')
+      }}
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.sync.outputs.changed }}
+      upstream_changed: ${{ steps.sync.outputs.upstream_changed }}
+      previous_version: ${{ steps.sync.outputs.previous_version }}
+      previous_commit: ${{ steps.sync.outputs.previous_commit }}
+      pinned_version: ${{ steps.sync.outputs.pinned_version }}
+      pinned_commit: ${{ steps.sync.outputs.pinned_commit }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.13'
+
+      - name: Check latest upstream
+        id: sync
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "upstream_changed=false" >> "$GITHUB_OUTPUT"
+            node <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require('node:fs');
+          const cp = require('node:child_process');
+          const current = JSON.parse(fs.readFileSync('upstream-gstack.json', 'utf8'));
+          let previous = current;
+          try {
+            previous = JSON.parse(cp.execFileSync('git', ['show', 'HEAD^:upstream-gstack.json'], { encoding: 'utf8' }));
+          } catch {
+            previous = current;
+          }
+          console.log(`previous_version=${previous.pinned_version}`);
+          console.log(`previous_commit=${previous.pinned_commit}`);
+          NODE
+            echo "pinned_version=$(node -p 'JSON.parse(require("node:fs").readFileSync("upstream-gstack.json", "utf8")).pinned_version')" >> "$GITHUB_OUTPUT"
+            echo "pinned_commit=$(node -p 'JSON.parse(require("node:fs").readFileSync("upstream-gstack.json", "utf8")).pinned_commit')" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force }}" = "true" ]; then
+            node ./scripts/sync-upstream.mjs --force
+          else
+            node ./scripts/sync-upstream.mjs
+          fi
+
+  release:
+    needs: detect
+    if: needs.detect.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.13'
+
+      - name: Refresh upstream pin
+        if: github.event_name != 'push'
+        id: sync
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force }}" = "true" ]; then
+            node ./scripts/sync-upstream.mjs --write --force
+          else
+            node ./scripts/sync-upstream.mjs --write
+          fi
+
+      - name: Prepare upstream from merged pin
+        if: github.event_name == 'push'
+        run: node ./scripts/bootstrap-upstream-gstack.mjs --clean --cache-dir "${{ github.workspace }}/dist/.sync-upstream/gstack"
+
+      - name: Bump package patch version
+        id: bump
+        run: node ./scripts/bump-package-version.mjs --patch
+
+      - name: Check npm package version
+        id: npm_version
+        run: |
+          if npm view "${{ steps.bump.outputs.package }}@${{ steps.bump.outputs.version }}" version >/tmp/npm-version.txt 2>/dev/null; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            cat /tmp/npm-version.txt
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Stop if package version already exists
+        if: steps.npm_version.outputs.published == 'true'
+        run: |
+          echo "npm already has ${{ steps.bump.outputs.package }}@${{ steps.bump.outputs.version }}."
+          echo "Bump package.json on main or re-run after choosing a new version."
+          exit 1
+
+      - name: Run tests
+        run: bun test
+
+      - name: Build release artifacts
+        env:
+          GSTACK_CODEX_UPSTREAM_ROOT: ${{ github.workspace }}/dist/.sync-upstream/gstack
+        run: node ./scripts/build-release-artifacts.mjs
+
+      - name: Pack npm artifact
+        env:
+          GSTACK_CODEX_UPSTREAM_ROOT: ${{ github.workspace }}/dist/.sync-upstream/gstack
+        run: node ./scripts/pack-release.mjs
+
+      - name: Run release compatibility gate
+        run: npm run check:release
+
+      - name: Generate upstream diff report
+        if: needs.detect.outputs.previous_commit != needs.detect.outputs.pinned_commit
+        env:
+          GSTACK_CODEX_UPSTREAM_ROOT: ${{ github.workspace }}/dist/.sync-upstream/gstack
+        run: |
+          node ./scripts/report-upstream-diff.mjs \
+            --previous "${{ needs.detect.outputs.previous_commit }}" \
+            --current "${{ needs.detect.outputs.pinned_commit }}" \
+            --output "${{ github.workspace }}/dist/upstream-diff-report.md"
+
+      - name: Upload upstream diff report
+        if: needs.detect.outputs.previous_commit != needs.detect.outputs.pinned_commit
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-diff-report-${{ steps.bump.outputs.tag }}
+          path: dist/upstream-diff-report.md
+
+      - name: Commit release bump and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json upstream-gstack.json
+          git commit -m "chore: release gstack-codex ${{ steps.bump.outputs.tag }}"
+          git tag "${{ steps.bump.outputs.tag }}"
+
+      - name: Push release commit and tag
+        run: |
+          git push origin HEAD:main
+          git push origin "${{ steps.bump.outputs.tag }}"
+
+      - name: Dispatch trusted publish workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run publish.yml --ref main -f tag="${{ steps.bump.outputs.tag }}"
+          echo "Dispatched publish.yml for ${{ steps.bump.outputs.tag }}."
