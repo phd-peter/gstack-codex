@@ -73,9 +73,15 @@ function runCodexVersionProbe(codexBin) {
     candidates = [codexBin];
   }
 
+  const hasShellMetacharacters = value => /[;&|`$()<>^"'\n\r]/.test(value);
+
   for (const candidate of candidates) {
     const extension = path.extname(candidate).toLowerCase();
-    const result = process.platform === 'win32' && (extension === '.cmd' || extension === '.bat')
+    const useShell = process.platform === 'win32' && (extension === '.cmd' || extension === '.bat');
+    if (useShell && hasShellMetacharacters(candidate)) {
+      continue;
+    }
+    const result = useShell
       ? spawnSync(candidate, ['--version'], {
         shell: true,
         encoding: 'utf8',
